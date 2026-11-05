@@ -62,15 +62,19 @@
         <div style="margin-top: 0px;">
             <div class="block">
                 <label>Width:</label>
-                <input id="width" onkeypress="makeCustom()" type="text" />
+                <input id="width" onkeypress="makeCustom()" oninput="sizeChanged()" type="text" />
             </div>
             <div class="block">
                 <label>Height:</label>
-                <input id="height" onkeypress="makeCustom()" type="text" />
+                <input id="height" onkeypress="makeCustom()" oninput="sizeChanged()" type="text" />
             </div>
             <div class="block">
                 <label>Mines:</label>
-                <input id="mines" onkeypress="makeCustom()" type="text" />
+                <input id="mines" onkeypress="makeCustom()" oninput="minesToPercent()" type="text" />
+            </div>
+            <div class="block">
+                <label>%:</label>
+                <input id="minesPercent" onkeypress="makeCustom()" oninput="percentToMines()" type="text" />
             </div>
         </div>
 
@@ -84,6 +88,8 @@
         <button type="button" style="margin-top: 5px;" id="NewGame" onclick="apply()">New game</button>
 
         <button type="button" style="margin-top: 5px; height: 30px;" id="repeatGame" onclick="playAgain()">Play again</button>
+
+        <label style="display: block; margin-top: 5px;"><input type="checkbox" class="checkbox" id="autoPlayAgain" /> <span>Auto play again</span></label>
 
         <div style="margin-top: 10px;">
             <label>Style:</label>
@@ -118,8 +124,19 @@
         <div style="margin-top: 1em;" class="checkboxes" id="play1">
             <label><input type="checkbox" class="checkbox" id="reduction" onclick="renderTiles(board.tiles)" /> <span>Reduction</span></label>
             <label><input type="checkbox" class="checkbox" id="showhints" onclick="updateHints(true)" checked /> <span>Show hints</span></label>
-            <label><input type="checkbox" class="checkbox" id="autoplay" onclick="if (this.checked) startSolver()" checked /> <span>Auto play</span></label>
+            <label><input type="checkbox" class="checkbox" id="autoplay" onclick="toggleAutoPlay()" checked /> <span>Auto play</span></label>
             <label><input type="checkbox" class="checkbox" id="acceptguesses" onclick="if (document.getElementById('autoplay').checked && this.checked) startSolver()" /> <span>Accept guesses</span></label>
+            <label><input type="checkbox" class="checkbox" id="singleclick" /> <span>Single click</span></label>
+
+            <button type="button" style="margin-top: 5px; height: 30px; display: none;" id="stepForward" onclick="stepSolver()">Step forward</button>
+
+            <div id="playSpeedControls" style="margin-top: 5px; width: 150px; clear: both;">
+                <label style="display: block; float: none;">Speed:</label>
+                <input id="playSpeed" type="range" min="0" max="1000" step="10" value="100" style="display: block; width: 130px;" oninput="playSpeedSliderChanged()" />
+                <label style="display: block; float: none; margin-top: 3px;">
+                    <input id="playSpeedMs" type="number" min="0" step="1" value="100" style="width: 60px;" oninput="playSpeedMsChanged()" /> ms
+                </label>
+            </div>
 
         </div>
 
@@ -429,6 +446,61 @@
         function makeCustom() {
 
             document.getElementById("custom").checked = true;
+
+        }
+
+        function minesToPercent() {
+
+            document.getElementById("custom").checked = true;
+
+            var minesX = document.getElementById("mines").value;
+            if (isNaN(minesX)) return;
+            var mines = Number(minesX);
+
+            var width = Number(document.getElementById("width").value);
+            var height = Number(document.getElementById("height").value);
+            if (isNaN(width) || isNaN(height) || width < 1 || height < 1) return;
+
+            var pct = (mines / (width * height)) * 100;
+            document.getElementById("minesPercent").value = Math.round(pct * 100) / 100;
+
+        }
+
+        function percentToMines() {
+
+            document.getElementById("custom").checked = true;
+
+            var pctX = document.getElementById("minesPercent").value;
+            if (isNaN(pctX)) return;
+            var pct = Number(pctX);
+
+            var width = Number(document.getElementById("width").value);
+            var height = Number(document.getElementById("height").value);
+            if (isNaN(width) || isNaN(height) || width < 1 || height < 1) return;
+
+            var mines = Math.round(pct * width * height / 100);
+            if (mines < 1) mines = 1;
+            if (mines > width * height - 1) mines = width * height - 1;
+            document.getElementById("mines").value = mines;
+
+        }
+
+        function sizeChanged() {
+
+            document.getElementById("custom").checked = true;
+
+            var pctX = document.getElementById("minesPercent").value;
+            if (pctX === "" || isNaN(pctX)) return;
+            var pct = Number(pctX);
+
+            var width = Number(document.getElementById("width").value);
+            var height = Number(document.getElementById("height").value);
+            if (isNaN(width) || isNaN(height) || width < 1 || height < 1) return;
+
+            var mines = Math.round(pct * width * height / 100);
+            if (mines < 1) mines = 1;
+            if (mines > width * height - 1) mines = width * height - 1;
+            document.getElementById("mines").value = mines;
 
         }
 

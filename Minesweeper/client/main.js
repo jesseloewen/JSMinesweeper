@@ -13,7 +13,7 @@ const MAX_WIDTH = 250;
 const MAX_HEIGHT = 250;
 const MAX_BINOMIAL_N = 65000;
 
-const CYCLE_DELAY = 100;  // minimum delay in milliseconds between processing cycles
+let playDelay = 100;  // minimum delay in milliseconds between autoplay cycles
 
 // offset 0 - 8 are the numbers and the bomb, hidden and flagged images are defined below
 const BOMB = 9;
@@ -78,6 +78,12 @@ const reductionCheckBox = document.getElementById("reduction");
 const autoPlayCheckBox = document.getElementById("autoplay");
 const showHintsCheckBox = document.getElementById("showhints");
 const acceptGuessesCheckBox = document.getElementById("acceptguesses");
+const singleClickCheckBox = document.getElementById("singleclick");
+const autoPlayAgainCheckBox = document.getElementById("autoPlayAgain");
+const stepForwardButton = document.getElementById("stepForward");
+const playSpeedControls = document.getElementById("playSpeedControls");
+const playSpeedSlider = document.getElementById("playSpeed");
+const playSpeedMs = document.getElementById("playSpeedMs");
 const seedText = document.getElementById("seed");
 const gameTypeSafe = document.getElementById("gameTypeSafe");
 const gameTypeZero = document.getElementById("gameTypeZero");
@@ -153,6 +159,9 @@ let replaying = false;
 let previousBoardHash = 0;
 let previousAnalysisQuery = "";
 let justPressedAnalyse = false;
+let singleStep = false;
+let lastActionX = null;
+let lastActionY = null;
 let dragging = false;  //whether we are dragging the cursor
 let dragTile;          // the last tile dragged over
 let dragButton;         // the button being pressed which dragging
@@ -261,6 +270,8 @@ async function startup() {
         showHintsCheckBox.checked = false;
         docOverlay.value = "none";
     }
+
+    syncAutoPlayControls();
 
     let width = 30;
     let height = 16;
@@ -4029,6 +4040,10 @@ async function sendActionsMessage(message) {
         }
 
         showMessage("The game has been " + reply.header.status + ". 3BV: " + solved3BV + "/" + value3BV + ",  Actions: " + actionsMade + ",  Efficiency: " + efficiency);
+
+        if (autoPlayAgainCheckBox.checked && !analysisMode) {
+            setTimeout(function () { apply(); }, 500);
+        }
         return;
     }
 
@@ -4037,6 +4052,20 @@ async function sendActionsMessage(message) {
 
     return reply;
 
+}
+
+function pickClosestMine(mines, refX, refY) {
+    if (refX === null) return mines[0];
+    let best = mines[0];
+    let bestDist = Math.abs(best.getX() - refX) + Math.abs(best.getY() - refY);
+    for (let i = 1; i < mines.length; i++) {
+        const d = Math.abs(mines[i].getX() - refX) + Math.abs(mines[i].getY() - refY);
+        if (d < bestDist) {
+            bestDist = d;
+            best = mines[i];
+        }
+    }
+    return best;
 }
 
 async function handleSolver(solverStart, headerId) {
@@ -4052,7 +4081,7 @@ async function handleSolver(solverStart, headerId) {
     }
 
     // do we want to show hints
-    if (showHintsCheckBox.checked || autoPlayCheckBox.checked || assistedPlayHints.length != 0 || docOverlay.value != "none" || docHardcore.checked) {
+    if (showHintsCheckBox.checked || autoPlayCheckBox.checked || assistedPlayHints.length != 0 || docOverlay.value != "none" || docHardcore.checked || singleStep) {
 
         document.getElementById("canvas").style.cursor = "wait";
 
@@ -4102,19 +4131,51 @@ async function handleSolver(solverStart, headerId) {
             showMessage("Press the 'Analyse' button to see the solver's suggested move.");
         }
 
-        if (autoPlayCheckBox.checked || assistedPlay) {
-            if (hints.length > 0 && (hints[0].prob == 1 || hints[0].prob == 0)) {
-                const message = buildMessageFromActions(hints, true);  // send all safe actions
+        if (autoPlayCheckBox.checked || assistedPlay || singleStep) {
+            const isSingleStep = singleStep;
+            singleStep = false;
 
-                const wait = Math.max(0, (CYCLE_DELAY - solverDuration));
+            const delay = isSingleStep ? 0 : playDelay;
+            const wait = Math.max(0, (delay - solverDuration));
 
+            if (singleClickCheckBox.checked && board.unflaggedMines.length > 0) {
+                const tile = pickClosestMine(board.unflaggedMines, lastActionX, lastActionY);
+                lastActionX = tile.getX();
+                lastActionY = tile.getY();
+                const message = {
+                    header: board.getMessageHeader(),
+                    actions: [{ index: board.xy_to_index(tile.getX(), tile.getY()), action: 2 }]
+                };
                 setTimeout(function () { sendActionsMessage(message) }, wait);
+
+            } else if (hints.length > 0 && (hints[0].prob == 1 || hints[0].prob == 0)) {
+                if (singleClickCheckBox.checked) {
+                    const sorted = [...hints].sort((a, b) => {
+                        if (a.action === ACTION_CHORD && b.action !== ACTION_CHORD) return -1;
+                        if (b.action === ACTION_CHORD && a.action !== ACTION_CHORD) return 1;
+                        if (lastActionX !== null) {
+                            const da = Math.abs(a.x - lastActionX) + Math.abs(a.y - lastActionY);
+                            const db = Math.abs(b.x - lastActionX) + Math.abs(b.y - lastActionY);
+                            return da - db;
+                        }
+                        return 0;
+                    });
+                    lastActionX = sorted[0].x;
+                    lastActionY = sorted[0].y;
+                    const message = buildMessageFromActions([sorted[0]], true);
+                    setTimeout(function () { sendActionsMessage(message) }, wait);
+                } else {
+                    const message = buildMessageFromActions(hints, true);
+                    setTimeout(function () { sendActionsMessage(message) }, wait);
+                }
 
             } else if (hints.length > 0 && acceptGuessesCheckBox.checked) { // if we are accepting guesses
 
+                if (singleClickCheckBox.checked) {
+                    lastActionX = hints[0].x;
+                    lastActionY = hints[0].y;
+                }
                 const message = buildMessageFromActions([hints[0]], false); // if we are guessing send only the first guess
-
-                const wait = Math.max(0, (CYCLE_DELAY - solverDuration));
 
                 setTimeout(function () { sendActionsMessage(message) }, wait);
 
@@ -4152,6 +4213,61 @@ async function startSolver() {
     if (!board.isStarted()) {
         board.setStarted();
     }
+}
+
+// run a single step of the auto player in player mode
+async function stepSolver() {
+    if (analysisMode) {
+        console.log("Step forward is only available in player mode");
+        return;
+    }
+
+    if (board.isGameover()) {
+        console.log("The game is over - nothing to solve");
+        return;
+    }
+
+    autoPlayCheckBox.checked = false;   // pause auto play so the solver stops after one cycle
+
+    if (canvasLocked) {
+        console.log("The canvas is logically locked - a move is already in flight");
+        return;
+    }
+
+    singleStep = true;
+    await startSolver();
+    singleStep = false;   // safety reset
+}
+
+// show or hide the step button / speed controls based on the auto play checkbox
+function syncAutoPlayControls() {
+    const enabled = autoPlayCheckBox.checked;
+    stepForwardButton.style.display = enabled ? "none" : "";
+    playSpeedControls.style.display = enabled ? "" : "none";
+}
+
+// called when the auto play checkbox is toggled
+function toggleAutoPlay() {
+    syncAutoPlayControls();
+    if (autoPlayCheckBox.checked) {
+        startSolver();
+    }
+}
+
+// called when the play speed slider is moved
+function playSpeedSliderChanged() {
+    playDelay = Number(playSpeedSlider.value);
+    playSpeedMs.value = playDelay;
+}
+
+// called when the exact millisecond delay is edited
+function playSpeedMsChanged() {
+    let value = Number(playSpeedMs.value);
+    if (Number.isNaN(value) || value < 0) {
+        value = 0;
+    }
+    playDelay = value;
+    playSpeedSlider.value = Math.min(value, Number(playSpeedSlider.max));
 }
 
 // send a JSON message to the server asking it to kill the game
