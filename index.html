@@ -79,6 +79,7 @@
             </div>
         </div>
 
+        <button type="button" style="margin-top: 5px; height: 30px;" id="presetsButton" onclick="presetsOpen()">Presets...</button>
 
         <div style="margin-top: 1em; display: none;" class="radioButtons" id="analysis0">
             <label><input id="buildHidden" type="radio" class="radioButton" name="buildType" value="hidden"><span>Build all hidden</span></label>
@@ -279,6 +280,40 @@
                 Best time: 00:00.000
             </div>
             <button style="position: absolute; bottom: 5px; right: 0px; height: 30px;" id="resetTracker" onclick="resetTracker()">Reset</button>
+        </div>
+    </div>
+
+    <!-- Presets panel -->
+    <div id="presetsPanel" style="position: absolute; z-index: 1; top: 0px; right: 0px; display: none; width: 100%; height: 5px">
+        <div id="presetsPanelBox" class="modal-content" style="position: absolute; top: 100px; right: 50px; width: 300px; height: 400px">
+            <div id="presetsPanelHeader" style="font-size: 20px; height: 24px; padding: 0px;">Presets</div>
+
+            <div style="margin-top: 5px; margin-left: 5px;">
+                <div class="block">
+                    <label>Width:</label>
+                    <input id="presetWidth" type="text" oninput="presetSizeChanged()" />
+                </div>
+                <div class="block">
+                    <label>Height:</label>
+                    <input id="presetHeight" type="text" oninput="presetSizeChanged()" />
+                </div>
+                <div class="block">
+                    <label>Mines:</label>
+                    <input id="presetMines" type="text" oninput="presetMinesToPercent()" />
+                </div>
+                <div class="block">
+                    <label>%:</label>
+                    <input id="presetPercent" type="text" oninput="presetPercentToMines()" />
+                </div>
+            </div>
+
+            <button style="margin-top: 5px; margin-left: 5px; width: 290px; height: 28px;" id="presetSave" onclick="savePreset()">Save Preset</button>
+
+            <select id="presetList" size="9" style="width: 290px; margin-top: 5px; margin-left: 5px;" onchange="selectPreset()"></select>
+
+            <button style="position: absolute; bottom: 35px; right: 5px; height: 28px; width: 90px;" id="presetApply" onclick="applyPreset()">Apply</button>
+            <button style="position: absolute; bottom: 5px; right: 5px; height: 28px; width: 90px;" id="presetDelete" onclick="deletePreset()">Delete</button>
+            <button style="position: absolute; bottom: 5px; left: 5px; height: 28px; width: 90px;" id="presetClose" onclick="presetsClose()">Close</button>
         </div>
     </div>
 
@@ -526,6 +561,153 @@
             document.getElementById("mines").value = mines;
 
         }
+
+        const PRESETS_KEY = "boardPresets";
+
+        function getPresets() {
+            var raw = localStorage.getItem(PRESETS_KEY);
+            if (raw == null) return [];
+            try {
+                var parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function storePresets(presets) {
+            localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+        }
+
+        function presetName(preset) {
+            return preset.w + "x" + preset.h + " (" + preset.m + " mines, " + preset.p + "%)";
+        }
+
+        function refreshPresetList() {
+            var list = document.getElementById("presetList");
+            var presets = getPresets();
+            list.innerHTML = "";
+            for (var i = 0; i < presets.length; i++) {
+                var opt = document.createElement("option");
+                opt.value = i;
+                opt.textContent = presetName(presets[i]);
+                list.appendChild(opt);
+            }
+        }
+
+        function presetsOpen() {
+            refreshPresetList();
+            document.getElementById("presetsPanel").style.display = "block";
+        }
+
+        function presetsClose() {
+            document.getElementById("presetsPanel").style.display = "none";
+        }
+
+        function presetMinesToPercent() {
+            var minesX = document.getElementById("presetMines").value;
+            if (isNaN(minesX)) return;
+            var mines = Number(minesX);
+
+            var width = Number(document.getElementById("presetWidth").value);
+            var height = Number(document.getElementById("presetHeight").value);
+            if (isNaN(width) || isNaN(height) || width < 1 || height < 1) return;
+
+            var pct = (mines / (width * height)) * 100;
+            document.getElementById("presetPercent").value = Math.round(pct * 100) / 100;
+        }
+
+        function presetPercentToMines() {
+            var pctX = document.getElementById("presetPercent").value;
+            if (isNaN(pctX)) return;
+            var pct = Number(pctX);
+
+            var width = Number(document.getElementById("presetWidth").value);
+            var height = Number(document.getElementById("presetHeight").value);
+            if (isNaN(width) || isNaN(height) || width < 1 || height < 1) return;
+
+            var mines = Math.round(pct * width * height / 100);
+            if (mines < 1) mines = 1;
+            if (mines > width * height - 1) mines = width * height - 1;
+            document.getElementById("presetMines").value = mines;
+        }
+
+        function presetSizeChanged() {
+            var pctX = document.getElementById("presetPercent").value;
+            if (pctX === "" || isNaN(pctX)) return;
+            var pct = Number(pctX);
+
+            var width = Number(document.getElementById("presetWidth").value);
+            var height = Number(document.getElementById("presetHeight").value);
+            if (isNaN(width) || isNaN(height) || width < 1 || height < 1) return;
+
+            var mines = Math.round(pct * width * height / 100);
+            if (mines < 1) mines = 1;
+            if (mines > width * height - 1) mines = width * height - 1;
+            document.getElementById("presetMines").value = mines;
+        }
+
+        function savePreset() {
+            var width = Number(document.getElementById("presetWidth").value);
+            var height = Number(document.getElementById("presetHeight").value);
+            var mines = Number(document.getElementById("presetMines").value);
+
+            if (isNaN(width) || isNaN(height) || isNaN(mines)) return;
+            if (width < 1 || height < 1 || mines < 1) return;
+            if (mines > width * height - 1) return;
+
+            var pct = Math.round((mines / (width * height)) * 100 * 100) / 100;
+            document.getElementById("presetPercent").value = pct;
+
+            var presets = getPresets();
+            presets.push({ w: width, h: height, m: mines, p: pct });
+            storePresets(presets);
+            refreshPresetList();
+            document.getElementById("presetList").selectedIndex = presets.length - 1;
+        }
+
+        function selectPreset() {
+            var list = document.getElementById("presetList");
+            var index = list.value;
+            if (index === "" || isNaN(index)) return;
+            var presets = getPresets();
+            var preset = presets[Number(index)];
+            if (preset == null) return;
+
+            document.getElementById("presetWidth").value = preset.w;
+            document.getElementById("presetHeight").value = preset.h;
+            document.getElementById("presetMines").value = preset.m;
+            document.getElementById("presetPercent").value = preset.p;
+        }
+
+        function applyPreset() {
+            var width = Number(document.getElementById("presetWidth").value);
+            var height = Number(document.getElementById("presetHeight").value);
+            var mines = Number(document.getElementById("presetMines").value);
+
+            if (isNaN(width) || isNaN(height) || isNaN(mines)) return;
+            if (width < 1 || height < 1 || mines < 1) return;
+
+            document.getElementById("width").value = width;
+            document.getElementById("height").value = height;
+            document.getElementById("mines").value = mines;
+            minesToPercent();
+            document.getElementById("custom").checked = true;
+
+            presetsClose();
+        }
+
+        function deletePreset() {
+            var list = document.getElementById("presetList");
+            var index = list.value;
+            if (index === "" || isNaN(index)) return;
+
+            var presets = getPresets();
+            presets.splice(Number(index), 1);
+            storePresets(presets);
+            refreshPresetList();
+        }
+
 
     </script>
 

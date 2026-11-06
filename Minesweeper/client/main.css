@@ -309,6 +309,18 @@ button:hover {
     border-right-width: 0px;
 }
 
+#presetsPanelHeader {
+    padding: 10px;
+    cursor: move;
+    z-index: 10;
+    border-color: #eee;
+    border-style: ridge;
+    border-top-width: 0px;
+    border-left-width: 0px;
+    border-bottom-width: 5px;
+    border-right-width: 0px;
+}
+
 
 /* styling for table */
 table {

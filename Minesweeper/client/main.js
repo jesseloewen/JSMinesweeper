@@ -147,6 +147,9 @@ const localStorageSelection = document.getElementById("localStorageSelection");
 //properties panel
 const propertiesPanel = document.getElementById("properties");
 
+//presets panel
+const presetsPanel = document.getElementById("presetsPanel");
+
 // elements used in the no guess build modal
 const ngModal = document.getElementById("noGuessBuilder");
 const ngText = document.getElementById("ngText");
@@ -361,6 +364,7 @@ async function startup() {
     dragElement(propertiesPanel);
     dragElement(xRayPanel);
     dragElement(trackerPanel);
+    dragElement(presetsPanel);
 
     // set the board details
     setBoardSizeOnGUI(width, height, mines);
