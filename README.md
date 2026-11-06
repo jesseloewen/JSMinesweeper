@@ -1,13 +1,25 @@
 # JSMinesweeper
 
-Play Minesweeper and analyse arbitrary positions at https://davidnhill.github.io/JSMinesweeper/
+A fork of [davidnhill/JSMinesweeper](https://github.com/davidnhill/JSMinesweeper) with many added features and improvements.
 
-This readme explains how to use the software and what techniques the solver uses.
+Play Minesweeper and analyse arbitrary positions at https://jesseloewen.github.io/JSMinesweeper/
+
+This readme explains how to use the software, what techniques the solver uses, and what's new in this fork.
 
 ## Overview
 This is a rewrite of my Java minesweeper solver in javascript. All the processing runs on the local (your) machine. The purpose of the rewrite was to make the solver more accessable since there was reluctance to download a java executable. The trade off is that javascript is significantly slower than java to execute. 
 
 The Java solver has a 41% win rate on classic expert (30x16/99 safe start in a corner) and 54.3% on modern expert (30x16/99 open start at (3,3)). The Javascript version is slightly weaker.
+
+## Fork Features
+
+This fork adds the following on top of the upstream:
+
+- **Single-click autoplay**: The solver plays the game continuously without requiring repeated clicks, with step-forward, auto-replay, and a speed slider.
+- **Mines percentage input**: Set mine count by percentage instead of absolute value.
+- **Tracker panel and LED timer**: A move tracker and stopwatch display; the timer pauses during board generation.
+- **"Click each flag" checkbox**: Single-click flagging mode where each flag must be individually toggled.
+- **Board size Presets panel**: Save, apply, and delete custom board size presets.
 
 ## How to use the player
 
