@@ -1135,13 +1135,14 @@ async function switchToAnalysis(doAnalysis) {
         return;
     }
 
-     if (doAnalysis) {
+if (doAnalysis) {
          document.getElementById("play0").style.display = "none";
          document.getElementById("play1").style.display = "none";
          document.getElementById("analysis0").style.display = "block";
          document.getElementById("analysis1").style.display = "block";
          document.getElementById("repeatGame").style.display = "none";
          document.getElementById("NewGame").innerHTML = "Reset board";
+         document.getElementById("gameTimer").style.display = "none";
 
          document.getElementById("selectAnalyser").className = "selected";
          document.getElementById("selectPlayer").className = "";
@@ -1153,11 +1154,12 @@ async function switchToAnalysis(doAnalysis) {
          document.getElementById("analysis1").style.display = "none";
          document.getElementById("repeatGame").style.display = "";
          document.getElementById("NewGame").innerHTML = "New game";
+         document.getElementById("gameTimer").style.display = "";
 
          document.getElementById("selectAnalyser").className = "";
          document.getElementById("selectPlayer").className = "selected";
 
-    }
+     }
 
     showExportButtons(false);
 
@@ -3745,7 +3747,9 @@ function clickAction(action) {
 
             if (!board.isStarted()) {
                  board.setStarted();
-                 startGameTimer();
+                 if (!analysisMode) {
+                     startGameTimer();
+                 }
             }
 
             // allow for dragging and remember the tile we just changed
