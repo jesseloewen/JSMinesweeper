@@ -181,6 +181,30 @@ let xRayBoardUID = 0;
 let xRayLabel = document.getElementById("xRayLabel");
 let xRayPe = null;
 
+const TRACKER_TITLE = "Tracker"
+let doTracker = false;
+const trackerPanel = document.getElementById("trackerPanel");
+const trackerLaunchButton = document.getElementById("trackerLaunchButton");
+const trackerPanelHeader = document.getElementById("trackerPanelHeader");
+const trackerStats = document.getElementById("trackerStats");
+let gamesCompleted = 0;
+let wins = 0;
+let losses = 0;
+let totalMoves = 0;
+
+const TIMER_SLOTS = 9; // MM:SS.mmm format
+const gameTimerCanvas = document.getElementById("gameTimer");
+const ctxTimer = gameTimerCanvas.getContext("2d");
+let gameTimerStart = 0;
+let timerRunning = false;
+let timerPaused = false;
+let pausedElapsed = 0;
+let timerAnimationId = null;
+let totalGameTime = 0;
+let totalWinTime = 0;
+let totalLossTime = 0;
+let bestTime = Number.MAX_SAFE_INTEGER;
+
 let lastFileHandle = null;
 
 let exportParms = null;
@@ -300,6 +324,8 @@ async function startup() {
 
     docMinesLeft.width = DIGIT_WIDTH * DIGITS;
     docMinesLeft.height = DIGIT_HEIGHT;
+    gameTimerCanvas.width = DIGIT_WIDTH * TIMER_SLOTS;
+    gameTimerCanvas.height = DIGIT_HEIGHT;
 
     //const BINOMIAL = new Binomial(MAX_WIDTH * MAX_HEIGHT + 10, 500);
     const BINOMIAL = new Binomial(MAX_BINOMIAL_N, 1000);
@@ -328,6 +354,7 @@ async function startup() {
     // make the properties div draggable
     dragElement(propertiesPanel);
     dragElement(xRayPanel);
+    dragElement(trackerPanel);
 
     // set the board details
     setBoardSizeOnGUI(width, height, mines);
@@ -516,6 +543,162 @@ function clickedProbabilityXRay() {
     }
 
     doProbabilityXRay = !doProbabilityXRay;
+}
+
+function clickedTracker() {
+    if (doTracker) {
+         trackerLaunchButton.className = ""; 
+         trackerPanel.style.display = "none";
+    } else {
+         trackerLaunchButton.className = "selected";
+         trackerPanel.style.display = "block";
+    }
+    doTracker = !doTracker;
+}
+
+function updateTrackerDisplay() {
+    const winPercentage = gamesCompleted > 0 ? ((wins / gamesCompleted) * 100).toFixed(3) : "0.000";
+    const avgMoves = gamesCompleted > 0 ? (totalMoves / gamesCompleted).toFixed(3) : "0.000";
+    const avgGameTime = gamesCompleted > 0 ? formatTime(totalGameTime / gamesCompleted) : "00:00.000";
+    const avgWinTime = wins > 0 ? formatTime(totalWinTime / wins) : "00:00.000";
+    const avgLossTime = losses > 0 ? formatTime(totalLossTime / losses) : "00:00.000";
+    const bestTimeStr = bestTime < Number.MAX_SAFE_INTEGER ? formatTime(bestTime) : "00:00.000";
+    trackerStats.innerHTML = "Games completed: " + gamesCompleted + "<br>" +
+        "Wins: " + wins + "<br>" +
+        "Losses: " + losses + "<br>" +
+        "Win Percentage: " + winPercentage + "%<br>" +
+        "Total moves: " + totalMoves + "<br>" +
+        "Average: Moves: " + avgMoves + "<br>" +
+        "Average game time: " + avgGameTime + "<br>" +
+        "Average win time: " + avgWinTime + "<br>" +
+        "Average loss time: " + avgLossTime + "<br>" +
+        "Best time: " + bestTimeStr;
+}
+
+function resetTracker() {
+    gamesCompleted = 0;
+    wins = 0;
+    losses = 0;
+    totalMoves = 0;
+    totalGameTime = 0;
+    totalWinTime = 0;
+    totalLossTime = 0;
+    bestTime = Number.MAX_SAFE_INTEGER;
+    updateTrackerDisplay();
+}
+
+function formatTime(milliseconds) {
+    const mins = Math.floor(milliseconds / 60000);
+    const secs = Math.floor((milliseconds % 60000) / 1000);
+    const ms = Math.floor(milliseconds % 1000);
+    return mins.toString().padStart(2, "0") + ":" +
+           secs.toString().padStart(2, "0") + "." +
+           ms.toString().padStart(3, "0");
+}
+
+function drawTimerDigit(position, value) {
+    ctxTimer.drawImage(led_images[value], DIGIT_WIDTH * position + 2, 2, DIGIT_WIDTH - 4, DIGIT_HEIGHT - 4);
+}
+
+function drawTimerColon(position) {
+    const x = DIGIT_WIDTH * position + Math.floor(DIGIT_WIDTH / 2) - 1;
+    ctxTimer.fillStyle = "red";
+    ctxTimer.fillRect(x, 8, 3, 5);
+    ctxTimer.fillRect(x, 19, 3, 5);
+}
+
+function drawTimerPeriod(position) {
+    const x = DIGIT_WIDTH * position + Math.floor(DIGIT_WIDTH / 2) - 1;
+    ctxTimer.fillStyle = "red";
+    ctxTimer.fillRect(x, 22, 3, 3);
+}
+
+function drawTimerCanvas(milliseconds) {
+    const mins = Math.floor(milliseconds / 60000);
+    const secs = Math.floor((milliseconds % 60000) / 1000);
+    const ms = milliseconds % 1000;
+
+    ctxTimer.fillStyle = "black";
+    ctxTimer.fillRect(0, 0, gameTimerCanvas.width, gameTimerCanvas.height);
+
+    const msUnits = ms % 10;
+    const msTens = Math.floor(ms / 10) % 10;
+    const msHundreds = Math.floor(ms / 100);
+    drawTimerDigit(8, msUnits);
+    drawTimerDigit(7, msTens);
+    drawTimerDigit(6, msHundreds);
+
+    drawTimerPeriod(5);
+
+    const secUnits = secs % 10;
+    const secTens = Math.floor(secs / 10);
+    drawTimerDigit(4, secUnits);
+    drawTimerDigit(3, secTens);
+
+    drawTimerColon(2);
+
+    const minUnits = mins % 10;
+    const minTens = Math.floor(mins / 10);
+    drawTimerDigit(1, minUnits);
+    drawTimerDigit(0, minTens);
+}
+
+function timerAnimationStep() {
+    const elapsed = Date.now() - gameTimerStart + pausedElapsed;
+    drawTimerCanvas(elapsed);
+    if (timerRunning) {
+        timerAnimationId = requestAnimationFrame(timerAnimationStep);
+    }
+}
+
+function startGameTimer() {
+    if (timerRunning) return;
+    gameTimerStart = Date.now();
+    timerRunning = true;
+    timerAnimationId = requestAnimationFrame(timerAnimationStep);
+}
+
+function stopGameTimer() {
+    if (!timerRunning) return 0;
+    timerRunning = false;
+    timerPaused = false;
+    if (timerAnimationId) {
+        cancelAnimationFrame(timerAnimationId);
+        timerAnimationId = null;
+    }
+    const elapsed = Date.now() - gameTimerStart + pausedElapsed;
+    drawTimerCanvas(elapsed);
+    return elapsed;
+}
+
+function pauseGameTimer() {
+    if (!timerRunning || timerPaused) return;
+    timerPaused = true;
+    pausedElapsed += Date.now() - gameTimerStart;
+    if (timerAnimationId) {
+        cancelAnimationFrame(timerAnimationId);
+        timerAnimationId = null;
+    }
+}
+
+function resumeGameTimer() {
+    if (!timerRunning || !timerPaused) return;
+    timerPaused = false;
+    gameTimerStart = Date.now();
+    timerAnimationId = requestAnimationFrame(timerAnimationStep);
+}
+
+function resetGameTimer() {
+    if (timerRunning) {
+        timerRunning = false;
+        timerPaused = false;
+        if (timerAnimationId) {
+            cancelAnimationFrame(timerAnimationId);
+            timerAnimationId = null;
+        }
+    }
+    pausedElapsed = 0;
+    drawTimerCanvas(0);
 }
 
 async function runProbabilityXRay() {
@@ -1537,6 +1720,8 @@ function resultLine(wins, played, text) {
 
 async function playAgain() {
 
+    resetGameTimer();
+
     // let the server know the game is over
     if (board != null && !analysisMode) {
         callKillGame(board.getID());
@@ -2138,6 +2323,8 @@ function loadReplayData(file) {
 }
 
 async function newGame(width, height, mines, seed, analyse) {
+
+    resetGameTimer();
 
     console.log("New game requested: Width=" + width + " Height=" + height + " Mines=" + mines + " Seed=" + seed);
 
@@ -3362,6 +3549,7 @@ function releaseAction(action) {
             if (!board.isStarted()) {
                 //message = {"id" : "new", "index" : board.xy_to_index(col, row), "action" : 1};
                 board.setStarted();
+                startGameTimer();
             }
 
             //if (!tile.isCovered()) {  // no point clicking on an already uncovered tile
@@ -3547,6 +3735,7 @@ function clickAction(action) {
 
             if (!board.isStarted()) {
                  board.setStarted();
+                 startGameTimer();
             }
 
             // allow for dragging and remember the tile we just changed
@@ -3898,6 +4087,7 @@ async function sendActionsMessage(message) {
 
     // either play locally or send to server
     let reply;
+    pauseGameTimer();
     if (PLAY_CLIENT_SIDE) {
         reply = await handleActions(message);
     } else {
@@ -3911,6 +4101,7 @@ async function sendActionsMessage(message) {
 
         reply = await json_data.json();
     }
+    resumeGameTimer();
 
     console.log("<== " + JSON.stringify(reply));
     //console.log(reply.header);
@@ -4038,6 +4229,26 @@ async function sendActionsMessage(message) {
             efficiency = (100 * solved3BV / actionsMade).toFixed(2) + "%";
             document.getElementById("newGameSmiley").src = 'resources/images/face_lose.svg';
         }
+
+        gamesCompleted++;
+        totalMoves += actionsMade;
+        if (reply.header.status == "won") {
+            wins++;
+        } else {
+            losses++;
+        }
+
+        const gameTime = stopGameTimer();
+        totalGameTime += gameTime;
+        if (reply.header.status == "won") {
+            totalWinTime += gameTime;
+            if (gameTime < bestTime) {
+                bestTime = gameTime;
+            }
+        } else {
+            totalLossTime += gameTime;
+        }
+        updateTrackerDisplay();
 
         showMessage("The game has been " + reply.header.status + ". 3BV: " + solved3BV + "/" + value3BV + ",  Actions: " + actionsMade + ",  Efficiency: " + efficiency);
 
@@ -4212,6 +4423,7 @@ async function startSolver() {
     await handleSolver(Date.now(), board.id);
     if (!board.isStarted()) {
         board.setStarted();
+        startGameTimer();
     }
 }
 
