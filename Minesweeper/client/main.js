@@ -78,9 +78,6 @@ const reductionCheckBox = document.getElementById("reduction");
 const autoPlayCheckBox = document.getElementById("autoplay");
 const showHintsCheckBox = document.getElementById("showhints");
 const acceptGuessesCheckBox = document.getElementById("acceptguesses");
-const singleClickCheckBox = document.getElementById("singleclick");
-const clickFlagCheckBox = document.getElementById("clickFlag");
-const clickFlagLabel = document.getElementById("clickFlagLabel");
 const autoPlayAgainCheckBox = document.getElementById("autoPlayAgain");
 const stepForwardButton = document.getElementById("stepForward");
 const playSpeedControls = document.getElementById("playSpeedControls");
@@ -250,8 +247,6 @@ async function startup() {
         console.log("Device does not supports touch screen");
         document.getElementById("leftClickFlag").style.display = "none"; 
     }
-
-    clickFlagLabel.style.display = singleClickCheckBox.checked ? "" : "none";
 
     // does the device have a hover capability. If not then don't show the X-Ray button
     if (!window.matchMedia('(hover: hover)').matches) {
@@ -2857,7 +2852,7 @@ async function replayForward(replayType) {
         // run the solver
         const options = {};
 
-        if (docPlayStyle.value == "flag") {
+        if (docPlayStyle.value == "flag" || docPlayStyle.value == "single") {
             options.playStyle = PLAY_STYLE_FLAGS;
         } else if (docPlayStyle.value == "noflag") {
             options.playStyle = PLAY_STYLE_NOFLAGS;
@@ -3070,7 +3065,7 @@ async function replayBackward(replayType) {
             // run the solver
             const options = {};
 
-            if (docPlayStyle.value == "flag") {
+            if (docPlayStyle.value == "flag" || docPlayStyle.value == "single") {
                 options.playStyle = PLAY_STYLE_FLAGS;
             } else if (docPlayStyle.value == "noflag") {
                 options.playStyle = PLAY_STYLE_NOFLAGS;
@@ -3202,7 +3197,7 @@ async function doAnalysis(fullBFDA) {
     if (solutionCounter.finalSolutionsCount != 0) {
 
          const options = {};
-        if (docPlayStyle.value == "flag") {
+        if (docPlayStyle.value == "flag" || docPlayStyle.value == "single") {
             options.playStyle = PLAY_STYLE_FLAGS;
         } else if (docPlayStyle.value == "noflag") {
             options.playStyle = PLAY_STYLE_NOFLAGS;
@@ -3790,8 +3785,8 @@ function clickAction(action) {
 
         const tile = board.getTileXY(action.col, action.row);
 
-        const clickFlag = singleClickCheckBox.checked && clickFlagCheckBox.checked;
-        if (button == 1 && !leftClickFlag && !clickFlag) {   // left mouse button and not left click flag
+        const isSingleClick = docPlayStyle.value == "single";
+        if (button == 1 && !leftClickFlag && !isSingleClick) {   // left mouse button and not left click flag
 
             //if (tile.isFlagged()) {  // no point clicking on an tile with a flag on it
             //    console.log("Tile has a flag on it - no action to take");
@@ -3806,7 +3801,7 @@ function clickAction(action) {
 
             return;
 
-        } else if (button == 3 || leftClickFlag || clickFlag) {  // right mouse button or left click flag
+        } else if (button == 3 || leftClickFlag || isSingleClick) {  // right mouse button or left click flag
 
             if (!tile.isCovered()) {  // no point flagging an already uncovered tile
                 return;
@@ -4312,7 +4307,7 @@ async function handleSolver(solverStart, headerId) {
         document.getElementById("canvas").style.cursor = "wait";
 
         const options = {};
-        if (docPlayStyle.value == "flag") {
+        if (docPlayStyle.value == "flag" || docPlayStyle.value == "single") {
             options.playStyle = PLAY_STYLE_FLAGS;
         } else if (docPlayStyle.value == "noflag") {
             options.playStyle = PLAY_STYLE_NOFLAGS;
@@ -4364,27 +4359,18 @@ async function handleSolver(solverStart, headerId) {
             const delay = isSingleStep ? 0 : playDelay;
             const wait = Math.max(0, (delay - solverDuration));
 
-            if (singleClickCheckBox.checked && board.unflaggedMines.length > 0) {
-                if (clickFlagCheckBox.checked) {
-                    const tile = pickClosestMine(board.unflaggedMines, lastActionX, lastActionY);
-                    lastActionX = tile.getX();
-                    lastActionY = tile.getY();
-                    const message = {
-                        header: board.getMessageHeader(),
-                        actions: [{ index: board.xy_to_index(tile.getX(), tile.getY()), action: 2 }]
-                    };
-                    setTimeout(function () { sendActionsMessage(message) }, wait);
-                } else {
-                    const actions = board.unflaggedMines.map(tile => ({
-                        index: board.xy_to_index(tile.getX(), tile.getY()),
-                        action: 2
-                    }));
-                    const message = { header: board.getMessageHeader(), actions };
-                    setTimeout(function () { sendActionsMessage(message) }, wait);
-                }
+            if (docPlayStyle.value == "single" && board.unflaggedMines.length > 0) {
+                const tile = pickClosestMine(board.unflaggedMines, lastActionX, lastActionY);
+                lastActionX = tile.getX();
+                lastActionY = tile.getY();
+                const message = {
+                    header: board.getMessageHeader(),
+                    actions: [{ index: board.xy_to_index(tile.getX(), tile.getY()), action: 2 }]
+                };
+                setTimeout(function () { sendActionsMessage(message) }, wait);
 
             } else if (hints.length > 0 && (hints[0].prob == 1 || hints[0].prob == 0)) {
-                if (singleClickCheckBox.checked) {
+                if (docPlayStyle.value == "single") {
                     const sorted = [...hints].sort((a, b) => {
                         if (a.action === ACTION_CHORD && b.action !== ACTION_CHORD) return -1;
                         if (b.action === ACTION_CHORD && a.action !== ACTION_CHORD) return 1;
@@ -4406,7 +4392,7 @@ async function handleSolver(solverStart, headerId) {
 
             } else if (hints.length > 0 && acceptGuessesCheckBox.checked) { // if we are accepting guesses
 
-                if (singleClickCheckBox.checked) {
+                if (docPlayStyle.value == "single") {
                     lastActionX = hints[0].x;
                     lastActionY = hints[0].y;
                 }

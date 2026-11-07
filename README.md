@@ -18,7 +18,6 @@ This fork adds the following on top of the upstream:
 - **Single-click autoplay**: The solver plays the game continuously without requiring repeated clicks, with step-forward, auto-replay, and a speed slider.
 - **Mines percentage input**: Set mine count by percentage instead of absolute value.
 - **Tracker panel and LED timer**: A move tracker and stopwatch display; the timer pauses during board generation.
-- **"Click each flag" checkbox**: Single-click flagging mode where each flag must be individually toggled.
 - **Board size Presets panel**: Save, apply, and delete custom board size presets.
 
 ## How to use the player

@@ -97,6 +97,7 @@
             <label>Style:</label>
             <select id="playstyle" onchange="updateHints(true)">
                 <option value="flag">Flagging</option>
+                <option value="single">Single</option>
                 <option value="noflag">No flagging</option>
                 <option value="eff">Safe efficiency</option>
                 <option value="nfeff">NF efficiency</option>
@@ -128,8 +129,6 @@
             <label><input type="checkbox" class="checkbox" id="showhints" onclick="updateHints(true)" checked /> <span>Show hints</span></label>
             <label><input type="checkbox" class="checkbox" id="autoplay" onclick="toggleAutoPlay()" checked /> <span>Auto play</span></label>
             <label><input type="checkbox" class="checkbox" id="acceptguesses" onclick="if (document.getElementById('autoplay').checked && this.checked) startSolver()" /> <span>Accept guesses</span></label>
-            <label><input type="checkbox" class="checkbox" id="singleclick" onclick="document.getElementById('clickFlagLabel').style.display = this.checked ? '' : 'none'" /> <span>Single click</span></label>
-            <label id="clickFlagLabel" style="display:none"><input type="checkbox" class="checkbox" id="clickFlag" checked /> <span>Click each flag</span></label>
 
             <button type="button" style="margin-top: 5px; height: 30px; display: none;" id="stepForward" onclick="stepSolver()">Step forward</button>
 
